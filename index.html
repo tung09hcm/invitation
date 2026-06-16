@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CLASSIFIED — Operation Friday Night</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Cinzel:wght@700&family=Inter:wght@300;400;600&display=swap");
+
+      :root {
+        --bg: #080c14;
+        --surface: #0d1322;
+        --border: #1e2d4a;
+        --amber: #f5a623;
+        --amber-dim: #8a5c10;
+        --red: #e8383a;
+        --green: #39d98a;
+        --text: #c8d8f0;
+        --dim: #5a7090;
+        --white: #eef4ff;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Share Tech Mono", monospace;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow-x: hidden;
+      }
+
+      /* Scanline overlay */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.08) 2px,
+          rgba(0, 0, 0, 0.08) 4px
+        );
+        pointer-events: none;
+        z-index: 9999;
+      }
+
+      .terminal {
+        width: min(680px, 95vw);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow:
+          0 0 40px rgba(245, 166, 35, 0.08),
+          0 0 80px rgba(0, 0, 0, 0.8);
+      }
+
+      .terminal-bar {
+        background: #101828;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .dot-red {
+        background: #ff5f57;
+      }
+      .dot-yellow {
+        background: #febc2e;
+      }
+      .dot-green {
+        background: #28c840;
+      }
+      .terminal-title {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--dim);
+        letter-spacing: 0.1em;
+      }
+
+      .terminal-body {
+        background: var(--surface);
+        padding: 28px 32px 36px;
+      }
+
+      /* ── SCREENS ── */
+      .screen {
+        display: none;
+      }
+      .screen.active {
+        display: block;
+      }
+
+      /* ── SCREEN 0: BOOT ── */
+      #screen-boot .boot-line {
+        font-size: 12px;
+        color: var(--dim);
+        line-height: 2;
+        overflow: hidden;
+        white-space: nowrap;
+        opacity: 0;
+      }
+      #screen-boot .boot-line.visible {
+        opacity: 1;
+      }
+      #screen-boot .cursor {
+        display: inline-block;
+        width: 8px;
+        background: var(--amber);
+        animation: blink 0.7s step-end infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* ── SCREEN 1: WHO ARE YOU ── */
+      .label {
+        font-size: 11px;
+        color: var(--amber);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .big-label {
+        font-size: 10px;
+        color: var(--dim);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+      .prompt-text {
+        font-size: 20px;
+        color: var(--white);
+        margin-bottom: 28px;
+        line-height: 1.5;
+      }
+      .prompt-text span {
+        color: var(--amber);
+      }
+
+      .input-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .cli-input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--amber-dim);
+        color: var(--amber);
+        font-family: "Share Tech Mono", monospace;
+        font-size: 16px;
+        padding: 6px 2px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .cli-input:focus {
+        border-bottom-color: var(--amber);
+      }
+      .cli-input::placeholder {
+        color: var(--dim);
+      }
+
+      .btn {
+        background: transparent;
+        border: 1px solid var(--amber);
+        color: var(--amber);
+        font-family: "Share Tech Mono", monospace;
+        font-size: 13px;
+        padding: 8px 20px;
+        cursor: pointer;
+        letter-spacing: 0.1em;
+        transition: all 0.15s;
+      }
+      .btn:hover {
+        background: var(--amber);
+        color: var(--bg);
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-red {
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .btn-red:hover {
+        background: var(--red);
+        color: var(--white);
+      }
+      .btn-green {
+        border-color: var(--green);
+        color: var(--green);
+      }
+      .btn-green:hover {
+        background: var(--green);
+        color: var(--bg);
+      }
+
+      .error-msg {
+        font-size: 12px;
+        color: var(--red);
+        margin-top: 6px;
+        min-height: 18px;
+      }
+      .hint-msg {
+        font-size: 12px;
+        color: var(--dim);
+        margin-top: 6px;
+      }
+
+      /* ── SCREEN 2: PERSONALITY ── */
+      .q-block {
+        margin-bottom: 30px;
+      }
+      .q-text {
+        font-size: 14px;
+        color: var(--white);
+        margin-bottom: 14px;
+        line-height: 1.6;
+      }
+      .q-text .q-num {
+        color: var(--amber);
+        margin-right: 6px;
+      }
+
+      .options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .opt {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: "Share Tech Mono", monospace;
+        font-size: 13px;
+        padding: 10px 14px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s;
+        border-radius: 2px;
+        position: relative;
+      }
+      .opt:hover {
+        border-color: var(--amber-dim);
+        color: var(--white);
+      }
+      .opt.selected {
+        border-color: var(--amber);
+        color: var(--amber);
+        background: rgba(245, 166, 35, 0.06);
+      }
+      .opt .opt-key {
+        color: var(--amber);
+        margin-right: 10px;
+      }
+
+      .progress-bar {
+        height: 2px;
+        background: var(--border);
+        margin-bottom: 28px;
+        border-radius: 1px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: var(--amber);
+        transition: width 0.4s ease;
+      }
+
+      .q-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      /* ── SCREEN 3: BU SPECIAL ── */
+      .bu-intro {
+        font-size: 13px;
+        color: var(--red);
+        margin-bottom: 20px;
+        line-height: 1.8;
+        border: 1px solid var(--red);
+        padding: 14px;
+        border-radius: 2px;
+        background: rgba(232, 56, 58, 0.05);
+      }
+
+      /* ── SCREEN 4: GRANTING ── */
+      #screen-grant .grant-log {
+        font-size: 12px;
+        color: var(--dim);
+        line-height: 2.2;
+      }
+      #screen-grant .grant-log .ok {
+        color: var(--green);
+      }
+      #screen-grant .grant-log .warn {
+        color: var(--amber);
+      }
+
+      /* ── SCREEN 5: INVITATION ── */
+      .classified-stamp {
+        font-family: "Cinzel", serif;
+        font-size: 11px;
+        color: var(--red);
+        letter-spacing: 0.4em;
+        border: 2px solid var(--red);
+        display: inline-block;
+        padding: 4px 12px;
+        margin-bottom: 24px;
+        opacity: 0.85;
+        transform: rotate(-2deg);
+      }
+      .invite-header {
+        font-size: 10px;
+        color: var(--dim);
+        letter-spacing: 0.25em;
+        margin-bottom: 6px;
+      }
+      .invite-to {
+        font-family: "Cinzel", serif;
+        font-size: 28px;
+        color: var(--white);
+        margin-bottom: 4px;
+        line-height: 1.2;
+      }
+      .invite-name {
+        font-family: "Cinzel", serif;
+        font-size: 34px;
+        color: var(--amber);
+        margin-bottom: 28px;
+        text-shadow: 0 0 20px rgba(245, 166, 35, 0.3);
+      }
+
+      .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 24px 0;
+      }
+
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 28px;
+      }
+      .detail-cell {
+      }
+      .detail-label {
+        font-size: 10px;
+        color: var(--dim);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .detail-value {
+        font-size: 16px;
+        color: var(--white);
+      }
+      .detail-value.highlight {
+        color: var(--amber);
+        font-size: 18px;
+      }
+
+      .venue-name {
+        font-family: "Cinzel", serif;
+        font-size: 22px;
+        color: var(--amber);
+        text-shadow: 0 0 15px rgba(245, 166, 35, 0.4);
+      }
+
+      .senders {
+        margin-top: 20px;
+        font-size: 12px;
+        color: var(--dim);
+        line-height: 2;
+      }
+      .senders span {
+        color: var(--text);
+      }
+
+      .confidential-box {
+        border: 1px dashed var(--border);
+        padding: 14px;
+        margin-top: 24px;
+        font-size: 11px;
+        color: var(--dim);
+        line-height: 1.8;
+        border-radius: 2px;
+      }
+      .confidential-box strong {
+        color: var(--amber);
+      }
+
+      .rsvp-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      /* confetti burst */
+      .confetti-wrap {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10000;
+        overflow: hidden;
+      }
+      .confetti-wrap span {
+        position: absolute;
+        top: -10px;
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        animation: fall linear forwards;
+      }
+      @keyframes fall {
+        to {
+          transform: translateY(110vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+
+      .flash-msg {
+        position: fixed;
+        inset: 0;
+        background: rgba(57, 217, 138, 0.12);
+        pointer-events: none;
+        z-index: 9998;
+        animation: flashIn 0.6s ease forwards;
+      }
+      @keyframes flashIn {
+        0% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      /* denied */
+      .denied-screen {
+        text-align: center;
+        padding: 40px 0;
+      }
+      .denied-screen .denied-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      .denied-screen h2 {
+        color: var(--red);
+        font-size: 22px;
+        letter-spacing: 0.1em;
+        margin-bottom: 12px;
+      }
+      .denied-screen p {
+        color: var(--dim);
+        font-size: 13px;
+        margin-bottom: 20px;
+        line-height: 1.8;
+      }
+
+      /* RSVP modal */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 32px;
+        width: min(440px, 92vw);
+        font-family: "Share Tech Mono", monospace;
+      }
+      .modal-box h3 {
+        color: var(--amber);
+        margin-bottom: 16px;
+        font-size: 16px;
+      }
+      .modal-box p {
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.8;
+        margin-bottom: 20px;
+      }
+
+      /* wiggle animation for wrong answer */
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20%,
+        60% {
+          transform: translateX(-8px);
+        }
+        40%,
+        80% {
+          transform: translateX(8px);
+        }
+      }
+      .shake {
+        animation: shake 0.4s ease;
+      }
+
+      .typewriter-cursor {
+        display: inline-block;
+        background: var(--green);
+        width: 7px;
+        animation: blink 0.7s step-end infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ────────────── TERMINAL WRAPPER ────────────── -->
+    <div class="terminal" id="app">
+      <div class="terminal-bar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <span class="terminal-title">op_friday_night.exe — SECURE CHANNEL</span>
+      </div>
+
+      <div class="terminal-body">
+        <!-- SCREEN 0: BOOT -->
+        <div class="screen active" id="screen-boot">
+          <div id="boot-lines"></div>
+        </div>
+
+        <!-- SCREEN 1: WHO ARE YOU -->
+        <div class="screen" id="screen-who">
+          <div class="big-label">// IDENTITY VERIFICATION — STEP 1 OF 3</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 33%"></div>
+          </div>
+          <div class="label">// ACCESS RESTRICTED</div>
+          <div class="prompt-text">
+            This message is intended <span>only</span> for a specific
+            individual.<br />
+            Before proceeding, please state your full name.
+          </div>
+          <div class="input-row">
+            <input
+              type="text"
+              class="cli-input"
+              id="name-input"
+              placeholder="Type your name..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="btn" onclick="checkName()">SUBMIT →</button>
+          </div>
+          <div class="error-msg" id="name-error"></div>
+          <div class="hint-msg" id="name-hint"></div>
+        </div>
+
+        <!-- SCREEN 2: PERSONALITY QUIZ -->
+        <div class="screen" id="screen-quiz">
+          <div class="big-label">// PERSONALITY CLEARANCE — STEP 2 OF 3</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 66%"></div>
+          </div>
+          <div id="quiz-container"></div>
+        </div>
+
+        <!-- SCREEN 3: BU SPECIAL VERIFICATION -->
+        <div class="screen" id="screen-bu">
+          <div class="big-label">// ANOMALY DETECTED — STEP 2.5 OF 3</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 72%"></div>
+          </div>
+          <div class="bu-intro">
+            ⚠ HOLD ON.<br />
+            Our system has flagged your profile as a potential
+            <strong style="color: var(--amber)">F1 G5 unit</strong>.<br />
+            This requires additional verification before clearance can be
+            issued.
+          </div>
+          <div id="bu-quiz-container"></div>
+        </div>
+
+        <!-- SCREEN 4: PROCESSING -->
+        <div class="screen" id="screen-grant">
+          <div class="big-label">// PROCESSING CLEARANCE...</div>
+          <div class="grant-log" id="grant-log"></div>
+        </div>
+
+        <!-- SCREEN 5: INVITATION REVEALED -->
+        <div class="screen" id="screen-invite">
+          <div class="classified-stamp">⬛ DECLASSIFIED</div>
+          <div class="invite-header">
+            // OFFICIAL INVITATION — OPERATION FRIDAY NIGHT
+          </div>
+          <div class="invite-to">You are cordially (but forcibly) invited,</div>
+          <div class="invite-name">Đỗ Phạm Gia Bảo,</div>
+          <p
+            style="
+              font-size: 14px;
+              color: var(--text);
+              margin-bottom: 24px;
+              line-height: 1.8;
+            "
+          >
+            to join what has been officially classified as a
+            <span style="color: var(--amber)">High-Priority Social Event</span>.
+            Attendance is strongly encouraged. Non-attendance will be met with
+            severe social consequences (i.e., you will be clowned on for the
+            next month).
+          </p>
+          <hr class="divider" />
+          <div class="detail-grid">
+            <div class="detail-cell">
+              <div class="detail-label">// DATE & TIME</div>
+              <div class="detail-value highlight">Friday, June 20th</div>
+              <div
+                class="detail-value"
+                style="font-size: 13px; color: var(--dim)"
+              >
+                After office hours 🍺
+              </div>
+            </div>
+            <div class="detail-cell">
+              <div class="detail-label">// MISSION OBJECTIVE</div>
+              <div class="detail-value">Eat. Drink. Vibe.</div>
+              <div
+                class="detail-value"
+                style="font-size: 12px; color: var(--dim); margin-top: 4px"
+              >
+                Repeat until satisfied.
+              </div>
+            </div>
+            <div class="detail-cell" style="grid-column: span 2">
+              <div class="detail-label">// DESIGNATED VENUE</div>
+              <div class="venue-name">GẠCh quán lẩu cua đồng</div>
+              <a
+                href="https://www.google.com/maps/place/G%E1%BA%A0CH+Qu%C3%A1n+-+L%E1%BA%A9u+Cua+%C4%90%E1%BB%93ng,+8+H%E1%BA%BBm+674,+Ph%C6%B0%E1%BB%9Bc+Long,+H%E1%BB%93+Ch%C3%AD+Minh/data=!4m2!3m1!1s0x3175278d5e6655e1:0xc07c0603905e8157!18m1!1e1?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI2LjI0LjEYACDXggMqiwEsOTQyNjc3MjcsOTQyOTIxOTUsOTQyOTk1MzIsMTAwNzk2NDk4LDEwMDc5Nzc2MSwxMDA3OTY1MzUsOTQyODA1NzYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksMTAwNzkyNTY4QgJWTg%3D%3D&skid=e194533a-29ad-4e31-872d-ec14ab5ccfca"
+                >Map</a
+              >
+            </div>
+          </div>
+
+          <hr class="divider" />
+
+          <div class="confidential-box">
+            <strong>// CONFIDENTIALITY NOTICE</strong><br />
+            By accessing this document, you acknowledge that:<br />
+            1. You will NOT leak this invite to anyone who didn't get one (you
+            know who).<br />
+            2. You will NOT use "I'm busy" as an excuse — we've seen your
+            calendar, Bảo.<br />
+            3. This message will self-destruct in your memory the moment you try
+            to show it to someone else.<br />
+            4. Any attempt to screenshot this for evidence will result in you
+            paying for the first round.<br />
+            <br />
+            <strong>// DATA PROTECTION:</strong> Your identity has been securely
+            verified and your personality data will be used exclusively to rank
+            the funniest person at the table. We are fully GDPR-compliant
+            (Generally Drinking & Partying Responsibly).
+          </div>
+
+          <div class="senders">
+            <div style="color: var(--dim); font-size: 11px; margin-bottom: 8px">
+              // AUTHORIZED BY:
+            </div>
+            <span>Bùi Thanh Tùng</span> &nbsp;·&nbsp;
+            <span>Nguyễn Cao Tuấn</span> &nbsp;·&nbsp;
+            <span>Phạm Minh Triết</span>
+          </div>
+
+          <div class="rsvp-row">
+            <button class="btn btn-green" onclick="rsvp('yes')">
+              ✓ I'LL BE THERE — CONFIRM
+            </button>
+            <button class="btn btn-red" onclick="rsvp('no')">
+              ✗ I CANNOT MAKE IT
+            </button>
+          </div>
+        </div>
+
+        <!-- SCREEN 6: DENIED -->
+        <div class="screen" id="screen-denied">
+          <div class="denied-screen">
+            <div class="denied-icon">🚫</div>
+            <h2>ACCESS DENIED</h2>
+            <p>
+              Our personality engine has determined that you are not<br />
+              in the correct headspace for this event.<br /><br />
+              Translation: you're being too boring right now.<br />
+              Try again when you're ready to have fun.
+            </p>
+            <button class="btn" onclick="restartQuiz()">
+              ↺ RETRY CLEARANCE
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RSVP Modals -->
+    <div class="modal-overlay" id="modal-yes">
+      <div class="modal-box">
+        <h3>// RSVP CONFIRMED ✓</h3>
+        <p>
+          Excellent. Your attendance has been logged.<br />
+          We will see you at
+          <strong style="color: var(--amber)">GẠCh quán lẩu cua đồng</strong> on
+          Friday, June 20th.<br /><br />
+          Please bring: your appetite, your good vibes, and absolutely zero
+          reasons to leave early.
+        </p>
+        <button class="btn btn-green" onclick="closeModal('modal-yes')">
+          CLOSE TRANSMISSION
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-no">
+      <div class="modal-box">
+        <h3>// REQUEST REJECTED 🚨</h3>
+        <p>
+          Your "no" has been received and immediately thrown in the trash.<br /><br />
+          This is a one-time invitation, Bảo. We will not be sending a
+          follow-up.<br />
+          We <em style="color: var(--red)">will</em>, however, be sending
+          passive-aggressive messages until Friday.<br /><br />
+          Are you absolutely, 100%, no-take-backs certain?
+        </p>
+        <div style="display: flex; gap: 12px">
+          <button
+            class="btn btn-red"
+            onclick="
+              closeModal('modal-no');
+              alert('Noted. Passive-aggressive campaign begins now.');
+            "
+          >
+            YES, I\'M SURE
+          </button>
+          <button class="btn btn-green" onclick="closeModal('modal-no')">
+            WAIT — I\'LL COME
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── STATE ──
+      let isBao = false;
+      let isBu = false;
+      let quizAnswers = [];
+      let buAnswers = [];
+      let quizStep = 0;
+
+      // ── PERSONALITY QUESTIONS ──
+      const questions = [
+        {
+          text: "Q1. It's Friday after work. What's your default vibe?",
+          opts: [
+            {
+              label: "Go home, shower, Netflix and sleep by 10pm",
+              correct: false,
+            },
+            { label: "Mild hangout, one drink max, home by 9", correct: false },
+            { label: "Where's the spot? I'm already ready.", correct: true },
+            {
+              label: "I need 3 business days to decide if I'm going out",
+              correct: false,
+            },
+          ],
+        },
+        {
+          text: "Q2. Your friends ask last minute. Your reaction?",
+          opts: [
+            {
+              label: "Immediately anxious. I need a schedule.",
+              correct: false,
+            },
+            {
+              label: "'Last minute? How dare you.' (goes anyway)",
+              correct: true,
+            },
+            { label: "I was already in bed. Goodnight.", correct: false },
+            {
+              label: "Sure but I'm bringing my own snacks and leaving at 8:30",
+              correct: false,
+            },
+          ],
+        },
+        {
+          text: "Q3. The lẩu arrives and it's FULL of cua đồng. You:",
+          opts: [
+            { label: "Stare at it philosophically", correct: false },
+            {
+              label: "Take a picture for Instagram first, then eat nothing",
+              correct: false,
+            },
+            { label: "Absolutely demolish it. No survivors.", correct: true },
+            { label: "I'm actually vegetarian this week", correct: false },
+          ],
+        },
+      ];
+
+      const buQuestions = [
+        {
+          text: "SPECIAL PROTOCOL: Our records indicate you may be a certified F1 G5 unit.\nPlease confirm your rank:",
+          opts: [
+            { label: "A. Silver. Totally Silver. (lies)", correct: false },
+            { label: "B. Platinum but I never play anymore", correct: false },
+            { label: "C. F1 G5. Hall of fame moment.", correct: true },
+            { label: "D. I don't play games, I AM the game", correct: false },
+          ],
+        },
+        {
+          text: "FINAL CHECK: How do you handle a 5v5 when your jungler ints?",
+          opts: [
+            { label: "A. Flame in chat immediately", correct: false },
+            { label: "B. Silent but seething — carry anyway", correct: true },
+            { label: "C. AFK base", correct: false },
+            { label: "D. Report and move on with grace", correct: false },
+          ],
+        },
+      ];
+
+      // ── BOOT SEQUENCE ──
+      const bootLines = [
+        "> Initializing SECURE INVITATION SYSTEM v2.6.0...",
+        "> Loading cryptographic party protocols...",
+        "> Verifying Friday-night compatibility...",
+        "> WARNING: This message contains trace amounts of fun.",
+        "> Checking recipient identity database...",
+        "> [ OK ] System ready. Stand by.",
+        "> PRESS ANY KEY OR CLICK TO BEGIN VERIFICATION.",
+      ];
+
+      window.onload = () => {
+        const container = document.getElementById("boot-lines");
+        let i = 0;
+        const interval = setInterval(() => {
+          if (i >= bootLines.length) {
+            clearInterval(interval);
+            const last = container.lastChild;
+            if (last)
+              last.insertAdjacentHTML(
+                "beforeend",
+                '<span class="cursor"> </span>',
+              );
+            document.addEventListener("keydown", startScreen1, { once: true });
+            document.addEventListener("click", startScreen1, { once: true });
+            return;
+          }
+          const div = document.createElement("div");
+          div.className = "boot-line visible";
+          div.style.fontSize = "12px";
+          div.style.color =
+            i < 4
+              ? "var(--dim)"
+              : i === 4
+                ? "var(--amber)"
+                : i === 5
+                  ? "var(--green)"
+                  : "var(--white)";
+          div.style.lineHeight = "2";
+          div.textContent = bootLines[i];
+          container.appendChild(div);
+          i++;
+        }, 340);
+      };
+
+      function startScreen1() {
+        showScreen("screen-who");
+        setTimeout(() => document.getElementById("name-input").focus(), 100);
+      }
+
+      // ── NAME CHECK ──
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.key === "Enter" &&
+          document.getElementById("screen-who").classList.contains("active")
+        ) {
+          checkName();
+        }
+      });
+
+      function checkName() {
+        const val = document
+          .getElementById("name-input")
+          .value.trim()
+          .toLowerCase();
+        const error = document.getElementById("name-error");
+        const hint = document.getElementById("name-hint");
+        error.textContent = "";
+        hint.textContent = "";
+
+        if (!val) {
+          error.textContent =
+            "> ERROR: Empty input detected. We need a name, not silence.";
+          return;
+        }
+
+        if (!val.includes("bao") && !val.includes("bảo")) {
+          // Check if it could be a real name but missing "bao"
+          if (val.length > 2) {
+            hint.textContent =
+              "> Hmm... interesting name. But are you sure you're not Bảo? 🤨";
+            setTimeout(() => {
+              error.textContent =
+                '> ERROR: The name you entered does not match our records. This invitation was sent to someone whose name contains "bao". Are you sure you are not Bảo?';
+            }, 800);
+          } else {
+            error.textContent = "> ERROR: Name too short. Try again.";
+          }
+          const inp = document.getElementById("name-input");
+          inp.classList.add("shake");
+          setTimeout(() => inp.classList.remove("shake"), 400);
+          return;
+        }
+
+        // Check if it might be Bùi (BU)
+        if (
+          val.includes("bui") ||
+          val.includes("bùi") ||
+          val.includes("thanh tung") ||
+          val.includes("tùng")
+        ) {
+          isBu = true;
+        }
+
+        isBao = true;
+        showScreen("screen-quiz");
+        renderQuiz();
+      }
+
+      // ── QUIZ ──
+      function renderQuiz() {
+        quizStep = 0;
+        quizAnswers = [];
+        renderQuestion();
+      }
+
+      function renderQuestion() {
+        const q = questions[quizStep];
+        const container = document.getElementById("quiz-container");
+        container.innerHTML = `
+    <div class="q-block">
+      <div class="q-text"><span class="q-num">//</span> ${q.text}</div>
+      <div class="options">
+        ${q.opts
+          .map(
+            (o, i) => `
+          <button class="opt" onclick="selectOpt(${i}, this)">
+            <span class="opt-key">${String.fromCharCode(65 + i)}.</span>${o.label}
+          </button>
+        `,
+          )
+          .join("")}
+      </div>
+    </div>
+    <div class="q-nav">
+      <div style="font-size:11px; color:var(--dim)">Question ${quizStep + 1} of ${questions.length}</div>
+      <button class="btn" id="next-btn" onclick="nextQuestion()" style="display:none">NEXT →</button>
+    </div>
+  `;
+      }
+
+      function selectOpt(idx, el) {
+        document
+          .querySelectorAll(".opt")
+          .forEach((o) => o.classList.remove("selected"));
+        el.classList.add("selected");
+        quizAnswers[quizStep] = questions[quizStep].opts[idx].correct;
+        document.getElementById("next-btn").style.display = "";
+      }
+
+      function nextQuestion() {
+        if (quizAnswers[quizStep] === undefined) return;
+
+        if (!quizAnswers[quizStep]) {
+          // Wrong answer — too boring
+          if (quizStep === questions.length - 1) {
+            showScreen("screen-denied");
+            return;
+          }
+        }
+
+        quizStep++;
+        if (quizStep >= questions.length) {
+          // Check if all correct
+          const allCorrect = quizAnswers.every((a) => a === true);
+          if (!allCorrect) {
+            showScreen("screen-denied");
+            return;
+          }
+
+          if (isBu) {
+            showScreen("screen-bu");
+            renderBuQuiz();
+          } else {
+            grantAccess();
+          }
+          return;
+        }
+        renderQuestion();
+      }
+
+      // ── BU SPECIAL ──
+      let buStep = 0;
+
+      function renderBuQuiz() {
+        buStep = 0;
+        buAnswers = [];
+        renderBuQuestion();
+      }
+
+      function renderBuQuestion() {
+        const q = buQuestions[buStep];
+        const container = document.getElementById("bu-quiz-container");
+        container.innerHTML = `
+    <div class="q-block">
+      <div class="q-text" style="white-space:pre-line"><span class="q-num">//</span> ${q.text}</div>
+      <div class="options">
+        ${q.opts
+          .map(
+            (o, i) => `
+          <button class="opt" onclick="selectBuOpt(${i}, this)">
+            <span class="opt-key">${String.fromCharCode(65 + i)}.</span>${o.label}
+          </button>
+        `,
+          )
+          .join("")}
+      </div>
+    </div>
+    <div class="q-nav">
+      <div style="font-size:11px; color:var(--dim)">Special Protocol ${buStep + 1} of ${buQuestions.length}</div>
+      <button class="btn btn-red" id="bu-next-btn" onclick="nextBuQuestion()" style="display:none">CONFIRM →</button>
+    </div>
+  `;
+      }
+
+      function selectBuOpt(idx, el) {
+        document
+          .querySelectorAll(".opt")
+          .forEach((o) => o.classList.remove("selected"));
+        el.classList.add("selected");
+        buAnswers[buStep] = buQuestions[buStep].opts[idx].correct;
+        document.getElementById("bu-next-btn").style.display = "";
+      }
+
+      function nextBuQuestion() {
+        buStep++;
+        if (buStep >= buQuestions.length) {
+          grantAccess();
+          return;
+        }
+        renderBuQuestion();
+      }
+
+      // ── GRANT ACCESS ──
+      const grantLines = [
+        { text: "> Verifying identity hash... ", delay: 0, class: "" },
+        { text: "[ ✓ MATCH: Đỗ Phạm Gia Bảo ]", delay: 600, class: "ok" },
+        { text: "> Running personality clearance... ", delay: 1200, class: "" },
+        { text: "[ ✓ VIBE CHECK: PASSED ]", delay: 1900, class: "ok" },
+        {
+          text: "> Cross-referencing fun-score index... ",
+          delay: 2500,
+          class: "",
+        },
+        {
+          text: "[ ✓ SCORE: 420/100 — OVERQUALIFIED ]",
+          delay: 3100,
+          class: "ok",
+        },
+        {
+          text: "> Checking Friday-night availability... ",
+          delay: 3700,
+          class: "",
+        },
+        {
+          text: "[ ✓ CALENDAR CLEAR — no excuses detected ]",
+          delay: 4300,
+          class: "warn",
+        },
+        { text: "> Decrypting invitation payload... ", delay: 4900, class: "" },
+        { text: "[ ✓ DECRYPTION COMPLETE ]", delay: 5400, class: "ok" },
+        { text: "> ██████████████████ 100%", delay: 5900, class: "ok" },
+        {
+          text: "> ACCESS GRANTED. WELCOME, Bảo. 🎉",
+          delay: 6400,
+          class: "ok",
+        },
+      ];
+
+      function grantAccess() {
+        showScreen("screen-grant");
+        const log = document.getElementById("grant-log");
+        log.innerHTML = "";
+        grantLines.forEach(({ text, delay, class: cls }) => {
+          setTimeout(() => {
+            const div = document.createElement("div");
+            div.textContent = text;
+            if (cls) div.classList.add(cls);
+            log.appendChild(div);
+          }, delay);
+        });
+        setTimeout(() => {
+          showScreen("screen-invite");
+          launchConfetti();
+        }, 7200);
+      }
+
+      // ── UTILITIES ──
+      function showScreen(id) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+      }
+
+      function restartQuiz() {
+        quizAnswers = [];
+        quizStep = 0;
+        showScreen("screen-quiz");
+        renderQuiz();
+      }
+
+      function rsvp(choice) {
+        document
+          .getElementById(choice === "yes" ? "modal-yes" : "modal-no")
+          .classList.add("open");
+      }
+
+      function closeModal(id) {
+        document.getElementById(id).classList.remove("open");
+      }
+
+      // ── CONFETTI ──
+      function launchConfetti() {
+        const wrap = document.createElement("div");
+        wrap.className = "confetti-wrap";
+        document.body.appendChild(wrap);
+
+        const colors = [
+          "#f5a623",
+          "#39d98a",
+          "#e8383a",
+          "#4db8ff",
+          "#c084fc",
+          "#facc15",
+        ];
+        for (let i = 0; i < 80; i++) {
+          const el = document.createElement("span");
+          el.style.left = Math.random() * 100 + "vw";
+          el.style.background =
+            colors[Math.floor(Math.random() * colors.length)];
+          el.style.width = 6 + Math.random() * 8 + "px";
+          el.style.height = 6 + Math.random() * 8 + "px";
+          el.style.animationDuration = 1.5 + Math.random() * 2 + "s";
+          el.style.animationDelay = Math.random() * 0.8 + "s";
+          wrap.appendChild(el);
+        }
+
+        const flash = document.createElement("div");
+        flash.className = "flash-msg";
+        document.body.appendChild(flash);
+
+        setTimeout(() => {
+          wrap.remove();
+          flash.remove();
+        }, 4000);
+      }
+    </script>
+  </body>
+</html>
